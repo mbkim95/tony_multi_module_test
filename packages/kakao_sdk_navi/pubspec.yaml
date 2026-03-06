@@ -1,6 +1,6 @@
 name: kakao_sdk_navi
 description: "A new Flutter package project."
-version: 0.0.1
+version: 0.0.4
 homepage: https://developers.kakao.com/docs/latest/flutter/getting-started
 repository: https://github.com/kakao/kakao_flutter_sdk
 
@@ -13,7 +13,7 @@ resolution: workspace
 dependencies:
   flutter:
     sdk: flutter
-  kakao_sdk_common: ^0.0.1
+  kakao_sdk_common: ^0.0.4
 
 dev_dependencies:
   flutter_test:
