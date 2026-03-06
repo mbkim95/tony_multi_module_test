@@ -1,0 +1,118 @@
+name: Publish
+
+on:
+  push:
+    tags:
+      - '*'
+  pull_request:
+    branches:
+      - develop
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Run in dry-run mode (false = real publish)"
+        required: true
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+
+env:
+  FLUTTER_VERSION: "3.38.4"
+
+concurrency:
+  group: publish-sdk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dry-run:
+    if: ${{ github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run != 'false') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      PUBLISH_DRY_RUN: "true"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Setup Dart
+        uses: dart-lang/setup-dart@v1
+
+      - name: Install dependencies
+        shell: bash
+        run: flutter pub get
+
+      - name: Melos bootstrap
+        shell: bash
+        run: dart run melos bs
+
+      - name: Publish via melos script (dry-run)
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "PUBLISH_DRY_RUN=$PUBLISH_DRY_RUN"
+          dart run melos publish --dry-run -y 2>&1 | tee publish-dry-run.log
+
+      - name: Upload dry-run log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: publish-dry-run-log
+          path: publish-dry-run.log
+
+  publish:
+    if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'false') }}
+    runs-on: ubuntu-latest
+    environment:
+      name: pub.dev
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      PUBLISH_DRY_RUN: "false"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Setup Dart
+        uses: dart-lang/setup-dart@v1
+
+      - name: Install dependencies
+        shell: bash
+        run: flutter pub get
+
+      - name: Melos bootstrap
+        shell: bash
+        run: dart run melos bs
+
+      - name: Publish to pub.dev via melos script
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "PUBLISH_DRY_RUN=$PUBLISH_DRY_RUN"
+          dart run melos publish --no-dry-run -y 2>&1 | tee publish.log
+
+      - name: Upload publish log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: publish-log
+          path: publish.log
